@@ -87,14 +87,14 @@ public class SudokuGUI extends JFrame {
   private int currentRow = -1;
   private int currentCol = -1;
   
-  // The number of time you can use SuperSwap
+  // The number of times you can use SuperSwap
   private int swapsRemaining = 2;
   
   // A toggle to enable only legal values to be entered
   private boolean enableLegalValuesOnly = false;
   
   // A toggle to enable highlighting the reasons a value is illegal upon a keypress.
-  private boolean enableIllegalHighlighting = false;
+  private boolean enableIllegalHighlighting = true;
   
   JFileChooser sharedFileChooser = new JFileChooser();
   
@@ -102,7 +102,9 @@ public class SudokuGUI extends JFrame {
   //private int hintRow = -1;
   //private int hintCol = -1;
 
-
+  private boolean isInSuperSwapMode = false; // Note: this is only for making sure the Super Swap
+  // button isn't accidentally pressed twice
+  
   // figuring out how big to make each button
   // honestly not sure how much detail is needed here with margins
   protected final int MARGIN_SIZE = 5;
@@ -145,11 +147,7 @@ public class SudokuGUI extends JFrame {
   }
   
   /* Checks if the game is over. If it is, starts a timer to repeatedly call the disco function. */
-  // TODO: Actually check before discoing, but this is just to test...
   private void checkIfGameOver() {
-    //for(HButton[] row : buttons)
-    //  for(HButton button : row)
-    //    button.enableWiggleMode(); // TEMPORARY...
     if(sudoku.gameOver())
       discoTimer.start();
   }
@@ -460,6 +458,8 @@ public class SudokuGUI extends JFrame {
             buttons[r][c].disableWiggleMode();
           }
         }
+        isInSuperSwapMode = false; // Note: this is only used to prevent the Super Swap button
+        // from being pressed twice, wasting both swaps...
         
         /* Change Background Color Back */
         for(HButton[] row : buttons) {
@@ -605,6 +605,7 @@ public class SudokuGUI extends JFrame {
     /* When entering a value that is illegal via the keyboard, this feature will quickly highlight
      *  all other values that serve as reasons why it is illegal. */
     JMenuItem illegalHighlighting = new JCheckBoxMenuItem("Feature #1: Toggle Illegal Highlighting");
+    illegalHighlighting.setSelected(true); // Turn it on by default
     view.add(illegalHighlighting);
     illegalHighlighting.addItemListener(new ItemListener() {
       @Override
@@ -656,12 +657,12 @@ public class SudokuGUI extends JFrame {
     superSwapButton.addActionListener(new ActionListener() {
       @Override
       public void actionPerformed(ActionEvent e) {
-        if(swapsRemaining <= 0)
+        if(swapsRemaining <= 0 || isInSuperSwapMode)
           return;
         else
+          isInSuperSwapMode = true; // This is only to make sure this button isn't pressed twice
           --swapsRemaining;
         superSwapButton.setText("Activate Super Swap! (" + swapsRemaining + " remaining)");
-        // TODO: Instructions telling you what to do with all those wiggling buttons?
         // Start wiggling all non-empty buttons...
         for(int c = 0; c < 9; ++c) {
           for(int r = 0; r < 9; ++r) {
