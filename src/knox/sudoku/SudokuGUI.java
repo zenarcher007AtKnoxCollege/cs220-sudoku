@@ -27,8 +27,13 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collection;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -476,8 +481,8 @@ public class SudokuGUI extends JFrame {
     
     // A dumb collection.contains() alternative...
     public boolean doesCollectionContain(Collection<SudokuSquare> squares, SudokuSquare square) {
-      orf: // Wow, appearently the HashSet.contains() method is really, really stupid so I have to do this
-        // in the stupidest way possible...
+      orf: // Wow, appearently the HashSet.contains() method is really, really stupid so I have to do 
+        // the exact same thing in the stupidest way possible...
       if(squares != null) {
         for(SudokuSquare sq : squares) {
           if(sq.equals(square))
@@ -526,8 +531,31 @@ public class SudokuGUI extends JFrame {
     }
     repaint();
   }
-
-
+  
+  
+  
+  /* Retrieves an extended attribute (not filesystem-based) from the given sudoku save file path */ 
+  private String getExtAttr(String path, String key) throws IOException, NoSuchElementException {
+    Path p = Paths.get(path, "");
+    String data = Files.readString(p);
+    String attrs;
+    try {
+      attrs = data.split("EXT:")[1];
+    } catch(ArrayIndexOutOfBoundsException e) {
+      throw new NoSuchElementException("File does not contain extended attributes.");
+    }
+    String entries[] = attrs.split(","); // Comma delimited
+    for(String entry : entries) {
+      String pair[] = entry.split(":");
+      if(pair[0].equals(key)) {
+        return pair[1];
+      }
+    }
+    throw new NoSuchElementException("No specified key was found in the extended attributes list");
+  }
+    
+  
+  
   private void createMenuBar() {
     menuBar = new JMenuBar();
 
@@ -565,12 +593,17 @@ public class SudokuGUI extends JFrame {
           if(path.lastIndexOf(".txt") == -1) { // Correct as .txt file.
             path = path + ".txt";
           }
-          Util.writeToFile(path, sudoku.toSaveString());
+          // Be sure to also save the number of swaps remaining, so a user cannot simply save, close,
+          // reopen, and load the game to refresh the count.
+          Util.writeToFile(path, sudoku.toSaveString() + "EXT:swaps:" + swapsRemaining);
         }
         
         repaint();
       }
     });
+    
+    // For Super Swap button below...
+    JButton superSwapButton = new JButton("Activate Super Swap! (" + swapsRemaining + " remaining)");
 
     addToMenu(file, "Load", new ActionListener() { // Load from a file
       @Override
@@ -581,6 +614,13 @@ public class SudokuGUI extends JFrame {
         if(sharedFileChooser.showOpenDialog(file) == JFileChooser.APPROVE_OPTION) {
           String path = sharedFileChooser.getSelectedFile().getAbsolutePath();
           sudoku.load(path);
+          // Read swapsRemaining
+          try {
+            swapsRemaining = Integer.parseInt( getExtAttr(path, "swaps") );
+          } catch (NumberFormatException | NoSuchElementException | IOException e1) {
+            swapsRemaining = 2;
+          }
+          superSwapButton.setText("Activate Super Swap! (" + swapsRemaining + " remaining)");
         }
         repaint();
         update();
@@ -653,7 +693,7 @@ public class SudokuGUI extends JFrame {
     /* Note that once you activate SuperSwap you cannot deactivate it, and must swap something with
      * something else. This is by design because users could peek at the way it highlights the board, and
      * then simply turn it back off. */
-    JButton superSwapButton = new JButton("Activate Super Swap! (" + swapsRemaining + " remaining)");
+    // NOTE: "superSwapButton" definiton above to allow manipulation by the "Load" menu item...
     superSwapButton.addActionListener(new ActionListener() {
       @Override
       public void actionPerformed(ActionEvent e) {
